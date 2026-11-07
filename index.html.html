@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#10243a">
+<title>صيدليتي - PHARMACY</title>
+<style>
+:root{--navy:#10243a;--navy2:#183650;--teal:#12b8a6;--gold:#e4b85c;--bg:#f2f5f8;--ink:#172536;--muted:#718096;--line:#e4eaf0;--red:#d9485f}
+*{box-sizing:border-box}body{margin:0;font-family:Tahoma,Arial,sans-serif;background:var(--bg);color:var(--ink)}
+header{background:linear-gradient(120deg,var(--navy),var(--navy2));color:white;padding:18px 20px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.brand{font-size:22px;font-weight:bold}.brand small{display:block;color:#b8c9d8;font-size:12px;margin-top:5px}
+header button{background:var(--gold);color:#182638;border:0;border-radius:10px;padding:10px 14px;font-weight:bold}
+.layout{display:grid;grid-template-columns:220px 1fr;min-height:calc(100vh - 76px)}
+nav{background:var(--navy);padding:14px;display:flex;flex-direction:column;gap:7px}
+nav button{background:transparent;color:#d9e5ef;border:0;text-align:right;padding:13px;border-radius:9px;font-size:14px;cursor:pointer}
+nav button.active,nav button:hover{background:#244761;color:white}
+main{padding:22px;max-width:1400px;width:100%;margin:auto}
+h2{margin:0 0 16px;color:var(--navy)}.muted{color:var(--muted);font-size:13px}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:20px}
+.card,.panel{background:white;border:1px solid var(--line);border-radius:14px;padding:16px;box-shadow:0 3px 12px #12243a08}
+.metric{font-size:25px;font-weight:bold;color:var(--navy);margin-top:10px}
+.toolbar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}
+input,select,textarea{font:inherit;padding:11px;border:1px solid #d6dee7;border-radius:9px;background:white;min-width:0}
+input,select{max-width:100%}.toolbar input{flex:1;min-width:150px}
+button{cursor:pointer}.primary{background:var(--teal);color:white;border:0;border-radius:9px;padding:11px 15px;font-weight:bold}
+.secondary{background:#eaf0f5;color:var(--navy);border:0;border-radius:9px;padding:10px 13px}
+.danger{background:#fff0f1;color:var(--red);border:0;border-radius:8px;padding:8px 10px}
+table{width:100%;border-collapse:collapse;min-width:650px}th,td{padding:12px 10px;border-bottom:1px solid var(--line);text-align:right;font-size:13px}th{color:#637487;background:#f8fafc}
+.table-wrap{overflow:auto;border:1px solid var(--line);border-radius:11px}
+.formgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;margin:12px 0}
+.formgrid label{display:flex;flex-direction:column;gap:6px;font-size:13px;color:#526477}
+.section{display:none}.section.active{display:block}
+.notice{padding:12px;border-radius:10px;background:#fff8e8;color:#795d1e;margin:10px 0;font-size:13px}
+footer{text-align:center;padding:20px;color:#8995a3;font-size:12px}
+@media(max-width:720px){.layout{grid-template-columns:1fr}nav{display:grid;grid-template-columns:repeat(3,1fr);gap:5px;padding:8px}nav button{text-align:center;padding:10px 5px;font-size:12px}main{padding:13px}header{padding:14px}.brand{font-size:19px}}
+</style>
+</head>
+<body>
+<header><div class="brand">✚ صيدليتي <span style="color:#e4b85c">PHARMACY</span><small>نظام إدارة المبيعات والمخزون والحسابات</small></div><button onclick="backup()">تنزيل نسخة احتياطية</button></header>
+<div class="layout">
+<nav id="nav">
+<button class="active" data-page="home">لوحة التحكم</button>
+<button data-page="medicines">الأدوية والمخزون</button>
+<button data-page="sales">المبيعات</button>
+<button data-page="purchases">المشتريات</button>
+<button data-page="suppliers">الموردون</button>
+<button data-page="expenses">المصروفات</button>
+<button data-page="reports">التقارير</button>
+<button data-page="settings">الإعدادات</button>
+</nav>
+<main>
+<section id="home" class="section active">
+<h2>لوحة التحكم</h2><p class="muted">ملخص حركة الصيدلية</p>
+<div class="cards">
+<div class="card">عدد الأصناف<div class="metric" id="mCount">0</div></div>
+<div class="card">مبيعات اليوم<div class="metric" id="todaySales">0</div><small>دينار عراقي</small></div>
+<div class="card">أصناف منخفضة المخزون<div class="metric" id="lowCount">0</div></div>
+<div class="card">أصناف منتهية الصلاحية<div class="metric" id="expiredCount">0</div></div>
+</div>
+<div class="panel"><h3>تنبيهات المخزون والصلاحية</h3><div id="alerts" class="muted">لا توجد تنبيهات حالياً</div></div>
+</section>
+
+<section id="medicines" class="section">
+<h2>الأدوية والمخزون</h2>
+<div class="panel">
+<h3>إضافة / تحديث دواء</h3>
+<div class="formgrid">
+<label>اسم الدواء<input id="medName" placeholder="اسم الدواء"></label>
+<label>الباركود<input id="medBarcode" placeholder="اختياري"></label>
+<label>الكمية<input id="medQty" type="number" min="0" placeholder="0"></label>
+<label>سعر الشراء<input id="medBuy" type="number" min="0" placeholder="0"></label>
+<label>سعر البيع<input id="medSell" type="number" min="0" placeholder="0"></label>
+<label>تاريخ انتهاء الصلاحية<input id="medExpiry" type="date"></label>
+</div><button class="primary" onclick="addMedicine()">حفظ الدواء</button>
+</div>
+<div class="toolbar" style="margin-top:15px"><input id="medSearch" placeholder="ابحث عن دواء..." oninput="renderMedicines()"></div>
+<div class="table-wrap"><table><thead><tr><th>الدواء</th><th>الباركود</th><th>الكمية</th><th>شراء</th><th>بيع</th><th>الصلاحية</th><th>إجراء</th></tr></thead><tbody id="medRows"></tbody></table></div>
+</section>
+
+<section id="sales" class="section">
+<h2>المبيعات</h2>
+<div class="panel">
+<div class="formgrid">
+<label>اختر الدواء<select id="saleMed"></select></label>
+<label>الكمية المباعة<input id="saleQty" type="number" min="1" value="1"></label>
+<label>اسم الزبون<input id="saleCustomer" placeholder="اختياري"></label>
+</div><button class="primary" onclick="addSale()">تسجيل البيع</button>
+<div class="notice">يتم خصم الكمية تلقائياً من المخزون. تحقق من الوصفة والجرعة وفق تعليمات الطبيب والصيدلي المختص.</div>
+</div>
+<div class="panel" style="margin-top:14px"><h3>سجل المبيعات</h3><div class="table-wrap"><table><thead><tr><th>التاريخ</th><th>الدواء</th><th>الكمية</th><th>سعر الوحدة</th><th>الإجمالي</th><th>الزبون</th></tr></thead><tbody id="saleRows"></tbody></table></div></div>
+</section>
+
+<section id="purchases" class="section">
+<h2>المشتريات وإدخال المخزون</h2>
+<div class="panel"><div class="formgrid">
+<label>الدواء<select id="purchaseMed"></select></label><label>الكمية المضافة<input id="purchaseQty" type="number" min="1" value="1"></label><label>سعر الشراء الجديد<input id="purchaseBuy" type="number" min="0"></label><label>المورد<input id="purchaseSupplier" placeholder="اسم المورد"></label>
+</div><button class="primary" onclick="addPurchase()">تسجيل المشتريات</button></div>
+<div class="panel" style="margin-top:14px"><h3>سجل المشتريات</h3><div class="table-wrap"><table><thead><tr><th>التاريخ</th><th>الدواء</th><th>الكمية</th><th>سعر الشراء</th><th>المورد</th></tr></thead><tbody id="purchaseRows"></tbody></table></div></div>
+</section>
+
+<section id="suppliers" class="section">
+<h2>الموردون</h2><div class="panel"><div class="formgrid"><label>اسم المورد<input id="supplierName"></label><label>رقم الهاتف<input id="supplierPhone"></label><label>ملاحظات<input id="supplierNote"></label></div><button class="primary" onclick="addSupplier()">إضافة مورد</button></div>
+<div class="table-wrap" style="margin-top:14px"><table><thead><tr><th>الاسم</th><th>الهاتف</th><th>ملاحظات</th><th>إجراء</th></tr></thead><tbody id="supplierRows"></tbody></table></div>
+</section>
+
+<section id="expenses" class="section">
+<h2>المصروفات</h2><div class="panel"><div class="formgrid"><label>بيان المصروف<input id="expenseName" placeholder="إيجار، كهرباء..."></label><label>المبلغ بالدينار<input id="expenseAmount" type="number" min="0"></label></div><button class="primary" onclick="addExpense()">حفظ المصروف</button></div>
+<div class="table-wrap" style="margin-top:14px"><table><thead><tr><th>التاريخ</th><th>البيان</th><th>المبلغ</th></tr></thead><tbody id="expenseRows"></tbody></table></div>
+</section>
+
+<section id="reports" class="section">
+<h2>التقارير</h2><div class="cards"><div class="card">إجمالي المبيعات<div class="metric" id="allSales">0</div></div><div class="card">إجمالي المصروفات<div class="metric" id="allExpenses">0</div></div><div class="card">الربح الإجمالي التقريبي<div class="metric" id="grossProfit">0</div></div></div>
+<p class="muted">الربح التقريبي = مجموع (سعر البيع − سعر الشراء) للكميات المباعة. لا يشمل الالتزامات أو الضرائب غير المسجلة.</p>
+<button class="secondary" onclick="window.print()">طباعة التقرير</button>
+</section>
+
+<section id="settings" class="section">
+<h2>الإعدادات والبيانات</h2><div class="panel">
+<p>البيانات محفوظة محلياً على هذا الجهاز باستخدام التخزين المحلي للمتصفح.</p>
+<button class="secondary" onclick="backup()">تصدير نسخة احتياطية JSON</button>
+<label style="display:block;margin-top:15px">استعادة نسخة احتياطية<input type="file" accept=".json,application/json" onchange="restore(event)"></label>
+<div class="notice">تنبيه: التخزين المحلي لا يزامن البيانات بين الأجهزة، وقد تُفقد البيانات عند حذف بيانات المتصفح. احتفظ بنسخة احتياطية بانتظام.</div>
+<button class="danger" onclick="clearData()">حذف جميع بيانات النظام</button>
+</div></section>
+</main></div>
+<footer>نظام إدارة الصيدلية — نسخة أولية قابلة للتطوير</footer>
+<script>
+const KEY='pharmacy-system-v1';
+let db=JSON.parse(localStorage.getItem(KEY)||'{"medicines":[],"sales":[],"purchases":[],"suppliers":[],"expenses":[]}');
+function save(){localStorage.setItem(KEY,JSON.stringify(db));renderAll()}
+function money(n){return Number(n||0).toLocaleString('en-US')}
+function dateNow(){return new Date().toLocaleString('ar-IQ')}
+function addMedicine(){
+ let name=val('medName').trim(),qty=+val('medQty'),buy=+val('medBuy'),sell=+val('medSell');
+ if(!name||qty<0||buy<0||sell<0){alert('أدخل بيانات الدواء بصورة صحيحة');return}
+ let barcode=val('medBarcode').trim(), old=barcode?db.medicines.find(x=>x.barcode===barcode):null;
+ if(old){old.name=name;old.qty+=qty;old.buy=buy;old.sell=sell;old.expiry=val('medExpiry')}
+ else db.medicines.push({id:Date.now(),name,barcode,qty,buy,sell,expiry:val('medExpiry')});
+ ['medName','medBarcode','medQty','medBuy','medSell','medExpiry'].forEach(x=>document.getElementById(x).value='');save()
+}
+function addSale(){
+ let id=+val('saleMed'),qty=+val('saleQty'),m=db.medicines.find(x=>x.id===id);
+ if(!m||qty<1||qty>m.qty){alert('تحقق من الدواء والكمية المتوفرة');return}
+ db.sales.unshift({date:dateNow(),id:m.id,name:m.name,qty,price:m.sell,buy:m.buy,customer:val('saleCustomer')});
+ m.qty-=qty;document.getElementById('saleQty').value=1;save()
+}
+function addPurchase(){
+ let m=db.medicines.find(x=>x.id===+val('purchaseMed')),q=+val('purchaseQty'),b=+val('purchaseBuy');
+ if(!m||q<1||b<0){alert('أدخل بيانات صحيحة');return}
+ m.qty+=q;m.buy=b||m.buy;db.purchases.unshift({date:dateNow(),name:m.name,qty:q,buy:m.buy,supplier:val('purchaseSupplier')});save()
+}
+function addSupplier(){let name=val('supplierName').trim();if(!name){alert('أدخل اسم المورد');return}db.suppliers.push({id:Date.now(),name,phone:val('supplierPhone'),note:val('supplierNote')});['supplierName','supplierPhone','supplierNote'].forEach(x=>document.getElementById(x).value='');save()}
+function addExpense(){let name=val('expenseName').trim(),amount=+val('expenseAmount');if(!name||amount<=0){alert('أدخل البيان والمبلغ');return}db.expenses.unshift({date:dateNow(),name,amount});document.getElementById('expenseName').value='';document.getElementById('expenseAmount').value='';save()}
+function val(id){return document.getElementById(id).value}
+function renderMedicines(){let q=(val('medSearch')||'').toLowerCase();document.getElementById('medRows').innerHTML=db.medicines.filter(m=>m.name.toLowerCase().includes(q)||(m.barcode||'').includes(q)).map(m=>`<tr><td>${esc(m.name)}</td><td>${esc(m.barcode||'-')}</td><td>${money(m.qty)}</td><td>${money(m.buy)}</td><td>${money(m.sell)}</td><td>${m.expiry||'-'}</td><td><button class="danger" onclick="delMed(${m.id})">حذف</button></td></tr>`).join('')}
+function delMed(id){if(confirm('حذف هذا الدواء؟')){db.medicines=db.medicines.filter(x=>x.id!==id);save()}}
+function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+function renderAll(){
+ renderMedicines();
+ let opts=db.medicines.map(m=>`<option value="${m.id}">${esc(m.name)} — المتوفر ${m.qty}</option>`).join('');
+ ['saleMed','purchaseMed'].forEach(id=>document.getElementById(id).innerHTML=opts||'<option value="">لا توجد أدوية</option>');
+ document.getElementById('saleRows').innerHTML=db.sales.map(s=>`<tr><td>${esc(s.date)}</td><td>${esc(s.name)}</td><td>${s.qty}</td><td>${money(s.price)}</td><td>${money(s.price*s.qty)}</td><td>${esc(s.customer||'-')}</td></tr>`).join('');
+ document.getElementById('purchaseRows').innerHTML=db.purchases.map(p=>`<tr><td>${esc(p.date)}</td><td>${esc(p.name)}</td><td>${p.qty}</td><td>${money(p.buy)}</td><td>${esc(p.supplier||'-')}</td></tr>`).join('');
+ document.getElementById('supplierRows').innerHTML=db.suppliers.map(s=>`<tr><td>${esc(s.name)}</td><td>${esc(s.phone)}</td><td>${esc(s.note)}</td><td><button class="danger" onclick="delSupplier(${s.id})">حذف</button></td></tr>`).join('');
+ document.getElementById('expenseRows').innerHTML=db.expenses.map(e=>`<tr><td>${esc(e.date)}</td><td>${esc(e.name)}</td><td>${money(e.amount)}</td></tr>`).join('');
+ let today=new Date().toLocaleDateString('en-CA');
+ let ts=db.sales.filter(s=>{let d=new Date();return s.date.startsWith(d.toLocaleDateString('ar-IQ'))}).reduce((a,s)=>a+s.price*s.qty,0);
+ let low=db.medicines.filter(m=>m.qty<=5), expired=db.medicines.filter(m=>m.expiry&&m.expiry<today);
+ document.getElementById('mCount').textContent=db.medicines.length;document.getElementById('todaySales').textContent=money(ts);
+ document.getElementById('lowCount').textContent=low.length;document.getElementById('expiredCount').textContent=expired.length;
+ document.getElementById('alerts').innerHTML=[...low.map(m=>'مخزون منخفض: '+esc(m.name)+' ('+m.qty+')'),...expired.map(m=>'منتهي الصلاحية: '+esc(m.name)+' — '+m.expiry)].join('<br>')||'لا توجد تنبيهات حالياً';
+ let total=db.sales.reduce((a,s)=>a+s.price*s.qty,0),exp=db.expenses.reduce((a,e)=>a+e.amount,0),profit=db.sales.reduce((a,s)=>a+(s.price-s.buy)*s.qty,0);
+ document.getElementById('allSales').textContent=money(total);document.getElementById('allExpenses').textContent=money(exp);document.getElementById('grossProfit').textContent=money(profit-exp);
+}
+function delSupplier(id){if(confirm('حذف المورد؟')){db.suppliers=db.suppliers.filter(s=>s.id!==id);save()}}
+function backup(){let blob=new Blob([JSON.stringify(db,null,2)],{type:'application/json'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='pharmacy-backup.json';a.click();URL.revokeObjectURL(a.href)}
+function restore(e){let f=e.target.files[0];if(!f)return;let r=new FileReader();r.onload=()=>{try{let x=JSON.parse(r.result);if(!x.medicines||!x.sales)throw 0;db=x;save();alert('تمت استعادة البيانات')}catch{alert('ملف النسخة الاحتياطية غير صالح')}};r.readAsText(f)}
+function clearData(){if(confirm('سيتم حذف كل البيانات نهائياً من هذا الجهاز. هل أنت متأكد؟')){localStorage.removeItem(KEY);db={medicines:[],sales:[],purchases:[],suppliers:[],expenses:[]};save()}}
+document.querySelectorAll('nav button').forEach(b=>b.addEventListener('click',()=>{document.querySelectorAll('nav button').forEach(x=>x.classList.remove('active'));document.querySelectorAll('.section').forEach(x=>x.classList.remove('active'));b.classList.add('active');document.getElementById(b.dataset.page).classList.add('active')}));
+renderAll();
+</script>
+</body></html>
