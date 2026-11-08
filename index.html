@@ -77,7 +77,8 @@ function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&l
 function toast(s){let t=document.getElementById('toast');t.textContent=s;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2300)}
 function id(){return crypto.randomUUID()}
 function canManage(type){const rules={products:['manager','pharmacist'],sales:['manager','pharmacist'],purchases:['manager','accountant'],customers:['manager','pharmacist','accountant'],suppliers:['manager','accountant'],users:['manager'],settings:['manager','pharmacist','accountant'],reports:['manager','pharmacist','accountant']};return (rules[type]||[]).includes(currentRole)}
-function canAccessPage(p){return p==='dashboard'||canManage(p)}\nfunction setPage(p){if(!canAccessPage(p)){toast('ليست لديك صلاحية الوصول إلى هذه الصفحة');return;}page=p;document.querySelectorAll('#nav button').forEach(b=>b.classList.toggle('active',b.dataset.page===p));render();window.scrollTo(0,0)}
+function canAccessPage(p){return p==='dashboard'||canManage(p)}
+function setPage(p){if(!canAccessPage(p)){toast('ليست لديك صلاحية الوصول إلى هذه الصفحة');return;}page=p;document.querySelectorAll('#nav button').forEach(b=>b.classList.toggle('active',b.dataset.page===p));render();window.scrollTo(0,0)}
 document.getElementById('nav').addEventListener('click',e=>{let b=e.target.closest('button[data-page]');if(b)setPage(b.dataset.page)});
 document.getElementById('today').textContent=new Date().toLocaleDateString('ar-IQ');
 const titles={dashboard:'لوحة التحكم',products:'الأدوية والمخزون',sales:'المبيعات',purchases:'المشتريات',customers:'الزبائن',suppliers:'المجهزون',reports:'التقارير',settings:'الإعدادات والنسخ',users:'المستخدمون والصلاحيات'};
