@@ -11,8 +11,31 @@
 @media(max-width:950px){.sidebar{width:205px}.main{margin-right:205px;width:calc(100% - 205px)}.stats{grid-template-columns:repeat(2,1fr)}.content{padding:20px}.topbar{padding:0 20px}}
 @media(max-width:650px){.sidebar{width:68px;padding:13px 8px}.brand{padding:4px 2px 18px;justify-content:center}.brandmark{width:42px;height:42px}.brandtext,.navtitle,.nav button .navlabel,.sidefoot{display:none}.nav{margin-top:15px}.nav button{justify-content:center;padding:13px 4px}.nav .ico{font-size:19px}.main{margin-right:68px;width:calc(100% - 68px)}.topbar{height:66px;padding:0 13px}.topbar h1{font-size:15px}.topbar p{font-size:10px}.content{padding:15px 12px}.stats{gap:9px}.stat{padding:12px}.stat strong{font-size:19px}.stat .top{font-size:10px}.stat .symbol{width:29px;height:29px}.pagehead{align-items:flex-start}.pagehead h2{font-size:16px}.btn{padding:9px 10px;font-size:11px}.grid2{grid-template-columns:1fr}.quick{grid-template-columns:repeat(3,1fr)}.quick button{font-size:10px;padding:12px 5px}.formgrid{grid-template-columns:1fr}.formgroup.full{grid-column:auto}.panel{padding:13px}.topactions .date{display:none}}
 </style>
-</head>
+<style>
+.auth-screen{min-height:100vh;display:grid;place-items:center;padding:20px;background:linear-gradient(145deg,#0b192d,#18385d)}
+.auth-card{width:min(430px,100%);background:#fff;border-radius:18px;padding:26px;box-shadow:0 25px 80px #0005}
+.auth-logo{width:58px;height:58px;border-radius:16px;background:linear-gradient(145deg,#f2d18a,#a87528);display:grid;place-items:center;font-size:26px;font-weight:900;color:#13233b;margin:0 auto 14px}
+.auth-card h2{text-align:center;color:#10233f;margin:0 0 7px}.auth-card p{text-align:center;color:#718096;font-size:12px;line-height:1.8;margin:0 0 20px}
+.auth-card .formgroup{margin:12px 0}.auth-card .btn{width:100%;justify-content:center;margin-top:8px}.auth-switch{border:0;background:transparent;color:#187a8a;display:block;margin:14px auto 0;font-size:12px}
+#authMessage{font-size:12px;color:#c13e49;min-height:20px;text-align:center;margin-top:10px}
+</style></head>
 <body>
+<div class="auth-screen" id="authScreen">
+ <div class="auth-card">
+  <div class="auth-logo">A</div>
+  <h2>ATLAS PHARMACY</h2>
+  <p id="authSubtitle">تسجيل الدخول إلى نظام إدارة الصيدلية</p>
+  <form id="authForm">
+   <div class="formgroup" id="nameGroup" style="display:none"><label>الاسم الكامل</label><input class="field" id="authName" autocomplete="name" placeholder="اسم المستخدم"></div>
+   <div class="formgroup"><label>البريد الإلكتروني</label><input class="field" id="authEmail" type="email" autocomplete="username" required placeholder="name@example.com"></div>
+   <div class="formgroup"><label>كلمة المرور</label><input class="field" id="authPassword" type="password" autocomplete="current-password" required minlength="8" placeholder="8 أحرف على الأقل"></div>
+   <button class="btn primary" id="authSubmit" type="submit">تسجيل الدخول</button>
+  </form>
+  <button class="auth-switch" id="authToggle" type="button">إنشاء حساب المدير الأول</button>
+  <div id="authMessage"></div>
+ </div>
+</div>
+
 <div class="app">
 <aside class="sidebar">
  <div class="brand"><div class="brandmark">A</div><div class="brandtext"><strong>ATLAS PHARMACY</strong><small>نظام إدارة الصيدلية</small></div></div>
@@ -26,8 +49,9 @@
   <button data-page="suppliers"><span class="ico">🚚</span><span class="navlabel">المجهزون</span></button>
   <button data-page="reports"><span class="ico">📊</span><span class="navlabel">التقارير</span></button>
   <button data-page="settings"><span class="ico">⚙️</span><span class="navlabel">الإعدادات والنسخ</span></button>
+  <button data-page="users" id="usersNav" style="display:none"><span class="ico">🛡️</span><span class="navlabel">المستخدمون والصلاحيات</span></button>
  </nav>
- <div class="sidefoot">ATLAS PHARMACY<br>نسخة أولية لإدارة الصيدلية<br>الحفظ على هذا الجهاز</div>
+ <div class="sidefoot">ATLAS PHARMACY<br>قاعدة بيانات مركزية<br><span id="signedUser"></span></div>
 </aside>
 <main class="main">
  <header class="topbar"><div><h1 id="pageTitle">لوحة التحكم</h1><p>مرحباً بك في نظام إدارة الصيدلية</p></div><div class="topactions"><span class="date muted" id="today"></span><div class="avatar">A</div></div></header>
@@ -38,23 +62,27 @@
 <div class="modalback" id="modalback"><div class="modal"><h3 id="modalTitle">إضافة</h3><form id="modalForm"><div class="formgrid" id="modalFields"></div><div class="modalfoot"><button type="button" class="btn soft" id="cancelModal">إلغاء</button><button class="btn primary" type="submit">حفظ البيانات</button></div></form></div></div>
 <div class="toast" id="toast"></div>
 <script>
-const KEY='atlas-pharmacy-v1';
+const KEY='atlas-pharmacy-v2';
+const SUPABASE_URL='https://lkasfuvcdudacmmflicr.supabase.co';
+const SUPABASE_KEY='sb_publishable_PLT7iRCDcdMVvD_LKnH0ww_y1IKJbQ7';
+const cloud=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
+let currentUser=null,currentRole='pending',cloudSnapshot={products:[],customers:[],suppliers:[],sales:[],purchases:[]},authMode='login',cloudBusy=false;
 const initial={products:[],sales:[],purchases:[],customers:[],suppliers:[],settings:{name:'ATLAS PHARMACY',currency:'د.ع'}};
 let db=load(),page='dashboard',edit={type:null,id:null},cart=[];
 function load(){try{return {...initial,...JSON.parse(localStorage.getItem(KEY)||'{}')}}catch(e){return structuredClone(initial)}}
-function save(){localStorage.setItem(KEY,JSON.stringify(db));render()}
+function save(){localStorage.setItem(KEY,JSON.stringify(db));render();if(currentUser&&!cloudBusy)cloudPersist().catch(e=>toast('تعذر الحفظ السحابي: '+(e.message||'تحقق من الاتصال')));}
 function money(n){return (Number(n)||0).toLocaleString('en-US')+' د.ع'}
 function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 function toast(s){let t=document.getElementById('toast');t.textContent=s;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2300)}
-function id(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
+function id(){return crypto.randomUUID()}
 function setPage(p){page=p;document.querySelectorAll('#nav button').forEach(b=>b.classList.toggle('active',b.dataset.page===p));render();window.scrollTo(0,0)}
 document.getElementById('nav').addEventListener('click',e=>{let b=e.target.closest('button[data-page]');if(b)setPage(b.dataset.page)});
 document.getElementById('today').textContent=new Date().toLocaleDateString('ar-IQ');
-const titles={dashboard:'لوحة التحكم',products:'الأدوية والمخزون',sales:'المبيعات',purchases:'المشتريات',customers:'الزبائن',suppliers:'المجهزون',reports:'التقارير',settings:'الإعدادات والنسخ'};
+const titles={dashboard:'لوحة التحكم',products:'الأدوية والمخزون',sales:'المبيعات',purchases:'المشتريات',customers:'الزبائن',suppliers:'المجهزون',reports:'التقارير',settings:'الإعدادات والنسخ',users:'المستخدمون والصلاحيات'};
 function head(title,sub,action=''){return '<div class="pagehead"><div><h2>'+title+'</h2><p>'+sub+'</p></div>'+action+'</div>'}
 function btn(label,fn,cls='primary'){return '<button class="btn '+cls+'" onclick="'+fn+'">'+label+'</button>'}
 function statsCard(label,value,ico,sub=''){return '<div class="stat"><div class="top"><span>'+label+'</span><span class="symbol">'+ico+'</span></div><strong>'+value+'</strong><small>'+sub+'</small></div>'}
-function render(){document.getElementById('pageTitle').textContent=titles[page]||'';let v=document.getElementById('view');v.innerHTML=({dashboard:dashboard,products:productsPage,sales:salesPage,purchases:purchasesPage,customers:customersPage,suppliers:suppliersPage,reports:reportsPage,settings:settingsPage}[page])()}
+function render(){document.getElementById('pageTitle').textContent=titles[page]||'';let v=document.getElementById('view');v.innerHTML=({dashboard:dashboard,products:productsPage,sales:salesPage,purchases:purchasesPage,customers:customersPage,suppliers:suppliersPage,reports:reportsPage,settings:settingsPage,users:usersPage}[page]||dashboard)()}
 function dashboard(){
  let stock=db.products.reduce((a,p)=>a+(+p.qty||0),0),low=db.products.filter(p=>(+p.qty||0)<=(+p.min||5)).length;
  let today=new Date().toDateString(),todaySales=db.sales.filter(s=>new Date(s.date).toDateString()===today),total=todaySales.reduce((a,s)=>a+(+s.total||0),0);
@@ -95,6 +123,40 @@ document.getElementById('cancelModal').onclick=()=>document.getElementById('moda
 document.getElementById('modalForm').onsubmit=e=>{e.preventDefault();let type=edit.type,data=Object.fromEntries(new FormData(e.target).entries());for(let k of Object.keys(data))if(['qty','min','buy','price'].includes(k))data[k]=+data[k];if(type==='purchases'){let p=db.products.find(p=>p.id===data.productId);if(!p)return toast('أضف دواء أولاً');p.qty+=data.qty;data.productName=p.name;db.purchases.push({id:id(),...data});}else if(edit.id){Object.assign(db[type].find(x=>x.id===edit.id),data)}else db[type].push({id:id(),...data});document.getElementById('modalback').classList.remove('show');save();toast('تم حفظ البيانات بنجاح')};
 function del(type,recordId){if(!confirm('هل أنت متأكد من حذف هذا السجل؟'))return;db[type]=db[type].filter(x=>x.id!==recordId);save();toast('تم الحذف')}
 if('serviceWorker' in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('/sw.js').catch(()=>{}));
-render();
+
+// Cloud database and authentication
+function showAuth(message=''){document.getElementById('authScreen').style.display='grid';document.querySelector('.app').style.display='none';document.getElementById('authMessage').textContent=message}
+function showApp(){document.getElementById('authScreen').style.display='none';document.querySelector('.app').style.display='flex';document.getElementById('signedUser').textContent=currentUser?.email||'';document.getElementById('usersNav').style.display=currentRole==='manager'?'flex':'none';}
+document.getElementById('authToggle').onclick=()=>{authMode=authMode==='login'?'signup':'login';document.getElementById('nameGroup').style.display=authMode==='signup'?'grid':'none';document.getElementById('authSubtitle').textContent=authMode==='signup'?'إنشاء حساب المدير الأول للصيدلية':'تسجيل الدخول إلى نظام إدارة الصيدلية';document.getElementById('authSubmit').textContent=authMode==='signup'?'إنشاء الحساب':'تسجيل الدخول';document.getElementById('authToggle').textContent=authMode==='signup'?'العودة إلى تسجيل الدخول':'إنشاء حساب المدير الأول';document.getElementById('authMessage').textContent='';};
+document.getElementById('authForm').onsubmit=async e=>{e.preventDefault();let email=document.getElementById('authEmail').value.trim(),password=document.getElementById('authPassword').value;let msg=document.getElementById('authMessage');msg.textContent='جارٍ التحقق...';try{let result;if(authMode==='signup'){result=await cloud.auth.signUp({email,password,options:{data:{display_name:document.getElementById('authName').value.trim()}}});if(result.error)throw result.error;if(!result.data.session){msg.textContent='تم إنشاء الحساب. تحقق من بريدك الإلكتروني ثم سجّل الدخول.';return;}}else{result=await cloud.auth.signInWithPassword({email,password});if(result.error)throw result.error;}await initializeWorkspace();}catch(err){msg.textContent=err.message||'تعذر إكمال العملية';}};
+async function initializeWorkspace(){let {data:{session},error}=await cloud.auth.getSession();if(error)throw error;if(!session){showAuth();return;}currentUser=session.user;let {data:profile,error:pe}=await cloud.from('user_profiles').select('display_name,app_role').eq('user_id',currentUser.id).single();if(pe)throw pe;currentRole=profile.app_role;if(currentRole==='pending'){await cloud.auth.signOut();currentUser=null;showAuth('حسابك بانتظار موافقة مدير الصيدلية.');return;}await loadCloud();showApp();applyRole();render();}
+function applyRole(){document.querySelectorAll('#nav button[data-page]').forEach(b=>{let p=b.dataset.page,allowed=true;if(currentRole==='accountant'&&p==='sales')allowed=false;if(currentRole==='pharmacist'&&['purchases','suppliers','users'].includes(p))allowed=false;if(currentRole!=='manager'&&p==='users')allowed=false;b.style.display=allowed?'flex':'none';});}
+async function loadCloud(){cloudBusy=true;try{const tables=['products','customers','suppliers','sales','purchases'];const results=await Promise.all(tables.map(t=>cloud.from(t).select('*')));for(let i=0;i<tables.length;i++)if(results[i].error)throw results[i].error;
+const [ps,cs,ss,sa,pu]=results.map(x=>x.data||[]);
+const items=await cloud.from('sale_items').select('*');if(items.error)throw items.error;
+const pitems=await cloud.from('purchase_items').select('*');if(pitems.error)throw pitems.error;
+db.products=ps.map(p=>({id:p.id,name:p.name,code:p.code,category:p.category,qty:+p.quantity,min:+p.min_quantity,buy:+p.purchase_price,price:+p.sale_price,expiry:p.expiry_date}));
+db.customers=cs.map(x=>({id:x.id,name:x.name,phone:x.phone,address:x.address,notes:x.notes}));
+db.suppliers=ss.map(x=>({id:x.id,name:x.name,phone:x.phone,address:x.address,notes:x.notes}));
+db.sales=sa.map(x=>({id:x.id,no:x.invoice_no,date:x.sold_at,customer:x.customer_name||'',total:+x.total,items:items.data.filter(it=>it.sale_id===x.id).map(it=>({id:it.product_id,name:it.product_name,qty:+it.quantity,price:+it.unit_price}))}));
+db.purchases=pu.map(x=>{let it=pitems.data.find(z=>z.purchase_id===x.id);return{id:x.id,supplier:x.supplier_name,productId:it?.product_id,productName:it?.product_name||'',qty:+(it?.quantity||0),buy:+(it?.unit_cost||0),date:(x.purchased_at||'').slice(0,10)}});
+cloudSnapshot=Object.fromEntries(tables.map((t,i)=>[t,results[i].data.map(x=>x.id)]));localStorage.setItem(KEY,JSON.stringify(db));
+}finally{cloudBusy=false;}}
+async function cloudPersist(){if(cloudBusy||!currentUser)return;cloudBusy=true;try{
+const maps={
+products:db.products.map(p=>({id:p.id,name:p.name,code:p.code||null,category:p.category||null,quantity:+p.qty||0,min_quantity:+p.min||0,purchase_price:+p.buy||0,sale_price:+p.price||0,expiry_date:p.expiry||null})),
+customers:db.customers.map(x=>({id:x.id,name:x.name,phone:x.phone||null,address:x.address||null,notes:x.notes||null})),
+suppliers:db.suppliers.map(x=>({id:x.id,name:x.name,phone:x.phone||null,address:x.address||null,notes:x.notes||null})),
+sales:db.sales.map(x=>({id:x.id,invoice_no:x.no,customer_name:x.customer||null,subtotal:+x.total||0,total:+x.total||0,sold_at:x.date,created_by:currentUser.id})),
+purchases:db.purchases.map(x=>({id:x.id,supplier_name:x.supplier||null,subtotal:(+x.qty||0)*(+x.buy||0),total:(+x.qty||0)*(+x.buy||0),purchased_at:x.date||new Date().toISOString(),created_by:currentUser.id}))
+};
+for(const t of Object.keys(maps)){if(maps[t].length){const {error}=await cloud.from(t).upsert(maps[t]);if(error)throw error;}const now=new Set(maps[t].map(x=>x.id));for(const oldId of cloudSnapshot[t]||[])if(!now.has(oldId)){const {error}=await cloud.from(t).delete().eq('id',oldId);if(error)throw error;}cloudSnapshot[t]=[...now];}
+for(const sale of db.sales){const {error:de}=await cloud.from('sale_items').delete().eq('sale_id',sale.id);if(de)throw de;if(sale.items?.length){const rows=sale.items.map(it=>({sale_id:sale.id,product_id:it.id,product_name:it.name,quantity:+it.qty,unit_price:+it.price,line_total:+it.qty*+it.price}));const {error}=await cloud.from('sale_items').insert(rows);if(error)throw error;}}
+for(const purchase of db.purchases){const {error:de}=await cloud.from('purchase_items').delete().eq('purchase_id',purchase.id);if(de)throw de;if(purchase.productId){const {error}=await cloud.from('purchase_items').insert({purchase_id:purchase.id,product_id:purchase.productId,product_name:purchase.productName,quantity:+purchase.qty,unit_cost:+purchase.buy,line_total:+purchase.qty*+purchase.buy});if(error)throw error;}}
+}finally{cloudBusy=false;}}
+async function usersPage(){let {data,error}=await cloud.from('user_profiles').select('user_id,display_name,app_role,created_at').order('created_at');if(error)return head('المستخدمون والصلاحيات','تعذر تحميل المستخدمين');return head('المستخدمون والصلاحيات','اعتماد حسابات الموظفين وتحديد الصلاحيات')+'<div class="panel"><div class="tablewrap"><table><thead><tr><th>الاسم</th><th>معرّف المستخدم</th><th>الصلاحية</th><th>تحديث</th></tr></thead><tbody>'+data.map(u=>'<tr><td>'+esc(u.display_name||'—')+'</td><td>'+esc(u.user_id.slice(0,8))+'…</td><td><select class="field" id="role_'+u.user_id+'"><option value="pending" '+(u.app_role==='pending'?'selected':'')+'>بانتظار الموافقة</option><option value="manager" '+(u.app_role==='manager'?'selected':'')+'>مدير</option><option value="pharmacist" '+(u.app_role==='pharmacist'?'selected':'')+'>صيدلي</option><option value="accountant" '+(u.app_role==='accountant'?'selected':'')+'>محاسب</option></select></td><td><button class="btn soft" onclick="updateRole(\''+u.user_id+'\')">حفظ</button></td></tr>').join('')+'</tbody></table></div></div>';}
+async function updateRole(uid){let role=document.getElementById('role_'+uid).value;let {error}=await cloud.from('user_profiles').update({app_role:role}).eq('user_id',uid);if(error)return toast(error.message);toast('تم تحديث الصلاحية');}
+(async()=>{try{await initializeWorkspace();}catch(e){showAuth('تعذر الاتصال بقاعدة البيانات: '+(e.message||''));}})();
+
 </script>
 </body></html>
