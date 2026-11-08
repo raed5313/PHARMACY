@@ -135,16 +135,16 @@ document.getElementById('authForm').onsubmit=async e=>{e.preventDefault();let em
 async function logout(){if(realtimeChannel){await cloud.removeChannel(realtimeChannel);realtimeChannel=null;}await cloud.auth.signOut();currentUser=null;currentRole='pending';cart=[];showAuth('تم تسجيل الخروج.');}
 async function initializeWorkspace(){let {data:{session},error}=await cloud.auth.getSession();if(error)throw error;if(!session){showAuth();return;}currentUser=session.user;let {data:profile,error:pe}=await cloud.from('user_profiles').select('display_name,app_role').eq('user_id',currentUser.id).single();if(pe)throw pe;currentRole=profile.app_role;if(currentRole==='pending'){await cloud.auth.signOut();currentUser=null;showAuth('حسابك بانتظار موافقة مدير الصيدلية.');return;}await loadCloud();showApp();applyRole();render();startRealtimeSync();}
 function applyRole(){document.querySelectorAll('#nav button[data-page]').forEach(b=>{b.style.display=canAccessPage(b.dataset.page)?'flex':'none';});}
-async function loadCloud(){cloudBusy=true;try{const tables=['products','customers','suppliers','sales','purchases'];const results=await Promise.all(tables.map(t=>cloud.from(t).select('*')));for(let i=0;i<tables.length;i++)if(results[i].error)throw results[i].error;
-const [ps,cs,ss,sa,pu]=results.map(x=>x.data||[]);
+async function loadCloud(){cloudBusy=true;try{const tables=['products','customers','suppliers','sales'];if(['manager','accountant'].includes(currentRole))tables.push('purchases');const results=await Promise.all(tables.map(t=>cloud.from(t).select('*')));for(let i=0;i<tables.length;i++)if(results[i].error)throw results[i].error;
+const ps=results[0].data||[],cs=results[1].data||[],ss=results[2].data||[],sa=results[3].data||[],pu=results[4]?.data||[];
 const items=await cloud.from('sale_items').select('*');if(items.error)throw items.error;
-const pitems=await cloud.from('purchase_items').select('*');if(pitems.error)throw pitems.error;
+let purchaseItems=[];if(['manager','accountant'].includes(currentRole)){const pitems=await cloud.from('purchase_items').select('*');if(pitems.error)throw pitems.error;purchaseItems=pitems.data||[];}
 db.products=ps.map(p=>({id:p.id,name:p.name,code:p.code,category:p.category,qty:+p.quantity,min:+p.min_quantity,buy:+p.purchase_price,price:+p.sale_price,expiry:p.expiry_date}));
 db.customers=cs.map(x=>({id:x.id,name:x.name,phone:x.phone,address:x.address,notes:x.notes}));
 db.suppliers=ss.map(x=>({id:x.id,name:x.name,phone:x.phone,address:x.address,notes:x.notes}));
 db.sales=sa.map(x=>({id:x.id,no:x.invoice_no,date:x.sold_at,customer:x.customer_name||'',total:+x.total,items:items.data.filter(it=>it.sale_id===x.id).map(it=>({id:it.product_id,name:it.product_name,qty:+it.quantity,price:+it.unit_price}))}));
-db.purchases=pu.map(x=>{let it=pitems.data.find(z=>z.purchase_id===x.id);return{id:x.id,supplier:x.supplier_name,productId:it?.product_id,productName:it?.product_name||'',qty:+(it?.quantity||0),buy:+(it?.unit_cost||0),date:(x.purchased_at||'').slice(0,10)}});
-cloudSnapshot=Object.fromEntries(tables.map((t,i)=>[t,results[i].data.map(x=>x.id)]));localStorage.setItem(KEY,JSON.stringify(db));
+if(['manager','accountant'].includes(currentRole))db.purchases=pu.map(x=>{let it=purchaseItems.find(z=>z.purchase_id===x.id);return{id:x.id,supplier:x.supplier_name,productId:it?.product_id,productName:it?.product_name||'',qty:+(it?.quantity||0),buy:+(it?.unit_cost||0),date:(x.purchased_at||'').slice(0,10)}});
+cloudSnapshot=Object.fromEntries(tables.map((t,i)=>[t,(results[i].data||[]).map(x=>x.id)]));localStorage.setItem(KEY,JSON.stringify(db));
 }finally{cloudBusy=false;}}
 async function cloudPersist(){if(cloudBusy||!currentUser)return;cloudBusy=true;try{
 const maps={
@@ -154,9 +154,14 @@ suppliers:db.suppliers.map(x=>({id:x.id,name:x.name,phone:x.phone||null,address:
 sales:db.sales.map(x=>({id:x.id,invoice_no:x.no,customer_name:x.customer||null,subtotal:+x.total||0,total:+x.total||0,sold_at:x.date,created_by:currentUser.id})),
 purchases:db.purchases.map(x=>({id:x.id,supplier_name:x.supplier||null,subtotal:(+x.qty||0)*(+x.buy||0),total:(+x.qty||0)*(+x.buy||0),purchased_at:x.date||new Date().toISOString(),created_by:currentUser.id}))
 };
+if(!['manager','pharmacist'].includes(currentRole))delete maps.products;
+if(!['manager','pharmacist','accountant'].includes(currentRole))delete maps.customers;
+if(!['manager','accountant'].includes(currentRole))delete maps.suppliers;
+if(!['manager','pharmacist'].includes(currentRole))delete maps.sales;
+if(!['manager','accountant'].includes(currentRole))delete maps.purchases;
 for(const t of Object.keys(maps)){if(maps[t].length){const {error}=await cloud.from(t).upsert(maps[t]);if(error)throw error;}const now=new Set(maps[t].map(x=>x.id));for(const oldId of cloudSnapshot[t]||[])if(!now.has(oldId)){const {error}=await cloud.from(t).delete().eq('id',oldId);if(error)throw error;}cloudSnapshot[t]=[...now];}
-for(const sale of db.sales){const {error:de}=await cloud.from('sale_items').delete().eq('sale_id',sale.id);if(de)throw de;if(sale.items?.length){const rows=sale.items.map(it=>({sale_id:sale.id,product_id:it.id,product_name:it.name,quantity:+it.qty,unit_price:+it.price,line_total:+it.qty*+it.price}));const {error}=await cloud.from('sale_items').insert(rows);if(error)throw error;}}
-for(const purchase of db.purchases){const {error:de}=await cloud.from('purchase_items').delete().eq('purchase_id',purchase.id);if(de)throw de;if(purchase.productId){const {error}=await cloud.from('purchase_items').insert({purchase_id:purchase.id,product_id:purchase.productId,product_name:purchase.productName,quantity:+purchase.qty,unit_cost:+purchase.buy,line_total:+purchase.qty*+purchase.buy});if(error)throw error;}}
+if(['manager','pharmacist'].includes(currentRole))for(const sale of db.sales){const {error:de}=await cloud.from('sale_items').delete().eq('sale_id',sale.id);if(de)throw de;if(sale.items?.length){const rows=sale.items.map(it=>({sale_id:sale.id,product_id:it.id,product_name:it.name,quantity:+it.qty,unit_price:+it.price,line_total:+it.qty*+it.price}));const {error}=await cloud.from('sale_items').insert(rows);if(error)throw error;}}
+if(['manager','accountant'].includes(currentRole))for(const purchase of db.purchases){const {error:de}=await cloud.from('purchase_items').delete().eq('purchase_id',purchase.id);if(de)throw de;if(purchase.productId){const {error}=await cloud.from('purchase_items').insert({purchase_id:purchase.id,product_id:purchase.productId,product_name:purchase.productName,quantity:+purchase.qty,unit_cost:+purchase.buy,line_total:+purchase.qty*+purchase.buy});if(error)throw error;}}
 }finally{cloudBusy=false;}}
 let realtimeChannel=null,cloudReloading=false;
 function startRealtimeSync(){
