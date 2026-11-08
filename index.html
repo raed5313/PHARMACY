@@ -36,7 +36,7 @@
  </div>
 </div>
 
-<div class="app">
+<div class="app" style="display:none">
 <aside class="sidebar">
  <div class="brand"><div class="brandmark">A</div><div class="brandtext"><strong>ATLAS PHARMACY</strong><small>نظام إدارة الصيدلية</small></div></div>
  <div class="navtitle">القائمة الرئيسية</div>
@@ -83,7 +83,7 @@ const titles={dashboard:'لوحة التحكم',products:'الأدوية وال�
 function head(title,sub,action=''){return '<div class="pagehead"><div><h2>'+title+'</h2><p>'+sub+'</p></div>'+action+'</div>'}
 function btn(label,fn,cls='primary'){return '<button class="btn '+cls+'" onclick="'+fn+'">'+label+'</button>'}
 function statsCard(label,value,ico,sub=''){return '<div class="stat"><div class="top"><span>'+label+'</span><span class="symbol">'+ico+'</span></div><strong>'+value+'</strong><small>'+sub+'</small></div>'}
-function render(){document.getElementById('pageTitle').textContent=titles[page]||'';let v=document.getElementById('view');v.innerHTML=({dashboard:dashboard,products:productsPage,sales:salesPage,purchases:purchasesPage,customers:customersPage,suppliers:suppliersPage,reports:reportsPage,settings:settingsPage,users:usersPage}[page]||dashboard)()}
+function render(){document.getElementById('pageTitle').textContent=titles[page]||'';let v=document.getElementById('view');let out=({dashboard:dashboard,products:productsPage,sales:salesPage,purchases:purchasesPage,customers:customersPage,suppliers:suppliersPage,reports:reportsPage,settings:settingsPage,users:usersPage}[page]||dashboard)();if(out&&typeof out.then==='function'){v.innerHTML='<div class="panel empty">جارٍ تحميل البيانات...</div>';out.then(html=>{if(page==='users')v.innerHTML=html;}).catch(e=>toast(e.message));}else v.innerHTML=out;}
 function dashboard(){
  let stock=db.products.reduce((a,p)=>a+(+p.qty||0),0),low=db.products.filter(p=>(+p.qty||0)<=(+p.min||5)).length;
  let today=new Date().toDateString(),todaySales=db.sales.filter(s=>new Date(s.date).toDateString()===today),total=todaySales.reduce((a,s)=>a+(+s.total||0),0);
@@ -95,10 +95,10 @@ function dashboard(){
 function productsPage(){
  let q=(document.getElementById('qproducts')?.value||'').toLowerCase();
  let rows=db.products.filter(p=>(p.name+' '+(p.code||'')+' '+(p.category||'')).toLowerCase().includes(q));
- return head('الأدوية والمخزون','إدارة الأصناف والكميات وأسعار البيع وتواريخ الانتهاء',btn('＋ إضافة دواء',"openForm('products')"))+
+ return head('الأدوية والمخزون','إدارة الأصناف والكميات وأسعار البيع وتواريخ الانتهاء',(['manager','pharmacist'].includes(currentRole)?btn('＋ إضافة دواء',"openForm('products')") : ''))+
  '<div class="panel"><div class="toolbar"><input id="qproducts" class="field search" placeholder="ابحث باسم الدواء أو الرمز..." oninput="filterProducts()" value="'+esc(q)+'"><select class="field" onchange="filterStock(this.value)"><option value="all">كل الأصناف</option><option value="low">مخزون منخفض</option></select></div><div class="tablewrap"><table><thead><tr><th>الدواء</th><th>الرمز</th><th>التصنيف</th><th>الكمية</th><th>سعر الشراء</th><th>سعر البيع</th><th>الانتهاء</th><th>إجراءات</th></tr></thead><tbody id="productRows">'+productRows(rows)+'</tbody></table></div></div>';
 }
-function productRows(rows){return rows.length?rows.map(p=>'<tr><td><b>'+esc(p.name)+'</b></td><td>'+esc(p.code||'—')+'</td><td>'+esc(p.category||'—')+'</td><td><span class="pill '+((+p.qty||0)<=(+p.min||5)?'low':'ok')+'">'+(+p.qty||0)+'</span></td><td>'+money(p.buy)+'</td><td><b>'+money(p.price)+'</b></td><td>'+esc(p.expiry||'—')+'</td><td><div class="actions"><button class="iconbtn" onclick="openForm(\'products\',\''+p.id+'\')">✎</button><button class="iconbtn" onclick="del(\'products\',\''+p.id+'\')">✕</button></div></td></tr>').join(''):'<tr><td colspan="8" class="empty">لا توجد أدوية مسجلة. ابدأ بإضافة أول صنف.</td></tr>'}
+function productRows(rows){return rows.length?rows.map(p=>'<tr><td><b>'+esc(p.name)+'</b></td><td>'+esc(p.code||'—')+'</td><td>'+esc(p.category||'—')+'</td><td><span class="pill '+((+p.qty||0)<=(+p.min||5)?'low':'ok')+'">'+(+p.qty||0)+'</span></td><td>'+money(p.buy)+'</td><td><b>'+money(p.price)+'</b></td><td>'+esc(p.expiry||'—')+'</td><td>'+(currentRole==='manager'||currentRole==='pharmacist'?'<div class="actions"><button class="iconbtn" onclick="openForm(\\'products\\',\\''+p.id+'\\')">✎</button><button class="iconbtn" onclick="del(\\'products\\',\\''+p.id+'\\')">✕</button></div>':'—')+'</td></tr>').join(''):'<tr><td colspan="8" class="empty">لا توجد أدوية مسجلة. ابدأ بإضافة أول صنف.</td></tr>'}
 function filterProducts(){let q=document.getElementById('qproducts').value.toLowerCase();document.getElementById('productRows').innerHTML=productRows(db.products.filter(p=>(p.name+' '+(p.code||'')+' '+(p.category||'')).toLowerCase().includes(q)))}
 function filterStock(val){let q=document.getElementById('qproducts').value.toLowerCase();let a=db.products.filter(p=>(p.name+' '+(p.code||'')+' '+(p.category||'')).toLowerCase().includes(q));if(val==='low')a=a.filter(p=>(+p.qty||0)<=(+p.min||5));document.getElementById('productRows').innerHTML=productRows(a)}
 function salesTable(rows){return '<div class="tablewrap"><table><thead><tr><th>رقم الفاتورة</th><th>التاريخ</th><th>الزبون</th><th>الإجمالي</th></tr></thead><tbody>'+(rows.length?rows.map(s=>'<tr><td>#'+esc(s.no)+'</td><td>'+new Date(s.date).toLocaleDateString('ar-IQ')+'</td><td>'+esc(s.customer||'نقدي')+'</td><td><b>'+money(s.total)+'</b></td></tr>').join(''):'<tr><td colspan="4" class="empty">لا توجد مبيعات بعد</td></tr>')+'</tbody></table></div>'}
